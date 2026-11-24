@@ -66,7 +66,7 @@ class WorkSource(Base):
 
 
 class WorkFile(Base):
-    __tablename__ = 'pdf_files'
+    __tablename__ = 'work_files'
 
     sha256 = Column(String(64), primary_key=True)
     work_id = Column(Integer, ForeignKey('works.id'), nullable=False, index=True)
