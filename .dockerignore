@@ -1,0 +1,10 @@
+.venv/
+**/__pycache__/
+.git/
+.idea/
+.kilo/
+.mineru/
+tests/
+*.db
+pdf_storage/
+index_data/

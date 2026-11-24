@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+sqlalchemy>=2.0
+psycopg2-binary
+pylatexenc>=2.10,<3
+mineru==4.2.3

@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: postgres:14
+    container_name: api_harvesters_postgres
+    environment:
+      POSTGRES_DB: formula_index
+      POSTGRES_USER: python
+      POSTGRES_PASSWORD: python
+    ports:
+      # только для просмотра БД с этого компьютера (порт 5432 занят проектом Parsers)
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U python -d formula_index"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - harvest_network
+
+  harvester:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: api_harvester
+    environment:
+      DATABASE_URL: postgresql://python:python@postgres:5432/formula_index
+      CONTACT_EMAIL: ${CONTACT_EMAIL:-}
+      DIRECT_HOSTS: ${DIRECT_HOSTS:-}
+      APP_ENV: ${APP_ENV:-development}
+      HF_HOME: /root/.cache/huggingface
+    volumes:
+      - harvester_logs:/var/log
+      - pdf_storage:/app/pdf_storage
+      - index_data:/app/index_data
+      - mineru_cache:/root/.cache
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 8g
+    memswap_limit: 8g
+    restart: unless-stopped
+    networks:
+      - harvest_network
+
+  backup:
+    # выгрузка БД в каталог backups/ проекта (копии переживают удаление Docker).
+    # Запускается только вручную, одна копия за запуск:
+    #   docker compose run --rm backup
+    image: postgres:14
+    profiles: ["manual"]  # не стартует при "docker compose up"
+    entrypoint: ["sh", "/backup.sh"]
+    environment:
+      PGPASSWORD: python
+      TZ: ${TZ:-Europe/Moscow}  # время в именах файлов копий
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}  # сколько последних копий хранить
+      BACKUP_INTERVAL: ${BACKUP_INTERVAL:-0}  # 0 - одна копия; > 0 - повторять с этим периодом, секунд
+    volumes:
+      - backups:/backups
+      # backup.sh уже внутри образа
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - harvest_network
+
+networks:
+  harvest_network:
+    driver: bridge
+
+# Именованные тома живут независимо от контейнеров: данные сохраняются при пересоздании
+# контейнеров и при "docker compose down" (удаляет тома только "docker compose down -v").
+# Имена закреплены, чтобы не зависеть от имени каталога проекта.
+volumes:
+  postgres_data:
+    name: apiharvesters_postgres_data
+  harvester_logs:
+    name: apiharvesters_harvester_logs
+  pdf_storage:
+    name: apiharvesters_pdf_storage
+  index_data:
+    name: apiharvesters_index_data
+  backups:
+    name: apiharvesters_backups
+  mineru_cache:
+    name: apiharvesters_mineru_cache

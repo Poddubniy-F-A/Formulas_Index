@@ -1,0 +1,2 @@
+# Первого числа каждого месяца в 04:00: сбор ссылок за текущий год, затем загрузка PDF
+0 4 1 * * cd /app && . /app/.env.cron && /usr/local/bin/python run.py harvest >> /var/log/cron.log 2>&1 && /usr/local/bin/python run.py download --storage /app/pdf_storage >> /var/log/cron.log 2>&1 && /usr/local/bin/python run.py extract --storage /app/pdf_storage --tree /app/index_data/formulas_tree.json >> /var/log/cron.log 2>&1
